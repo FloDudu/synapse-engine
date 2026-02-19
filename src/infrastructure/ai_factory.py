@@ -32,12 +32,3 @@ class AIFactory:
             temperature=temperature,
             max_retries=2
         )
-
-# Test rapide (à supprimer plus tard ou déplacer dans un fichier de test)
-if __name__ == "__main__":
-    try:
-        embeddings = AIFactory.get_embedding_model()
-        llm = AIFactory.get_llm()
-        print(f"✅ Stack initialisée : {settings.EMBEDDING_MODEL} & {settings.LLM_MODEL}")
-    except Exception as e:
-        print(f"❌ Erreur de configuration : {e}")
