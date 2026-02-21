@@ -1,7 +1,9 @@
 # src/main.py
 
 import logging
-from fastapi import FastAPI, HTTPException, status
+import os
+from fastapi import FastAPI, HTTPException, status, Security, Depends
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from src.core.qa_service import QAService
 
@@ -15,6 +17,18 @@ app = FastAPI(
     description="Une API pour discuter avec vos documents.",
     version="1.0.0"
 )
+
+# Sécurité : Définition de la clé API attendue
+API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
+    # On récupère la clé secrète définie dans l'environnement (ou une valeur par défaut pour le dev)
+    expected_key = os.getenv("APP_SECRET_KEY", "synapse_secret_dev")
+    if api_key != expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : Clé d'API invalide ou manquante."
+        )
 
 # Modèle de données pour la requête
 class QuestionRequest(BaseModel):
@@ -41,7 +55,8 @@ async def startup_event():
 @app.post("/ask", 
           response_model=AnswerResponse,
           summary="Posez une question à vos documents",
-          tags=["Question-Réponse"])
+          tags=["Question-Réponse"],
+          dependencies=[Depends(verify_api_key)])
 async def ask_question(request: QuestionRequest):
     """
     Recevez une question et retournez une réponse basée sur les documents ingérés.

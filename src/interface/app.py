@@ -1,6 +1,9 @@
 import streamlit as st
 import requests
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configuration de la page
 st.set_page_config(page_title="Synapse Engine", page_icon="🧠")
@@ -10,6 +13,7 @@ st.markdown("### Votre Second Cerveau Numérique")
 
 # Configuration de l'API (à adapter selon l'environnement, ex: Docker)
 API_URL = os.getenv("API_URL", "http://localhost:8000")
+APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "synapse_secret_dev")
 
 # Initialisation de l'historique de chat
 if "messages" not in st.session_state:
@@ -32,7 +36,9 @@ if prompt := st.chat_input("Posez une question à vos documents..."):
         message_placeholder = st.empty()
         try:
             with st.spinner("Analyse des documents en cours..."):
-                response = requests.post(f"{API_URL}/ask", json={"question": prompt})
+                # On ajoute le header d'authentification
+                headers = {"X-API-Key": APP_SECRET_KEY}
+                response = requests.post(f"{API_URL}/ask", json={"question": prompt}, headers=headers)
                 
                 if response.status_code == 200:
                     answer = response.json().get("answer", "Pas de réponse.")
