@@ -12,37 +12,41 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class VectorStoreManager:
-
     """
-
     Gère la création et l'accès à la base de données vectorielle.
-
-    Utilise le design pattern 'Singleton' implicite pour la connexion à la DB.
-
+    Utilise un design pattern Singleton pour garantir une seule instance.
     """
-
     _instance = None
+    _vector_store = None
 
-
-
-    def __new__(cls, embedding_model: Embeddings):
-        # On s'assure qu'une seule instance est créée.
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            instance = super(VectorStoreManager, cls).__new__(cls)
+            cls._instance = super(VectorStoreManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self, embedding_model: Embeddings):
+        """
+        Initialise la connexion à la base de données vectorielle, mais seulement si elle n'a pas déjà été faite.
+        """
+        # L'initialisation ne se fait qu'une seule fois.
+        if self._vector_store is None:
+            if embedding_model is None:
+                logger.error("Le modèle d'embedding est requis pour la première initialisation.")
+                return
+
             try:
                 logger.info(f"Initialisation de la base de données vectorielle sur le disque à: {settings.VECTOR_DB_PATH}")
-                instance._vector_store = Chroma(
+                self._vector_store = Chroma(
                     collection_name=settings.COLLECTION_NAME,
                     embedding_function=embedding_model,
                     persist_directory=settings.VECTOR_DB_PATH,
                 )
                 logger.info("Base de données vectorielle initialisée avec succès.")
-                cls._instance = instance
             except Exception as e:
                 logger.error(f"Erreur lors de l'initialisation de ChromaDB: {e}")
+                self._vector_store = None # S'assurer que l'état est cohérent en cas d'échec
                 raise
-        return cls._instance
-
+    
     def get_retriever(self, search_type: str = "similarity", search_kwargs=None):
         """
         Retourne un retriever pour la recherche de documents.
@@ -60,7 +64,7 @@ class VectorStoreManager:
         """
         Ajoute des documents à la collection et s'assure de la persistance.
         """
-        if not hasattr(self, '_vector_store') or not self._vector_store:
+        if self._vector_store is None:
             logger.error("Impossible d'ajouter des documents, le Vector Store n'est pas initialisé.")
             return
 

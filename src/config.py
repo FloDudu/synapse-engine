@@ -14,4 +14,9 @@ class Settings:
     EMBEDDING_MODEL = "voyage-large-2" # Excellent pour le retrieval
     LLM_MODEL = "mistral-large-latest" # Ou "open-mixtral-8x22b"
 
+    # Observabilité (LangSmith)
+    LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "false")
+    LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
+    LANGCHAIN_PROJECT = os.getenv("LANGCHAIN_PROJECT", "synapse-engine")
+
 settings = Settings()
