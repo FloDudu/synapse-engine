@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.env
+*.db
+chroma_db/
+data/
+tests/
+.git/
+.gitignore
+*.md
+.env.example
+start.bat
+pytest.ini

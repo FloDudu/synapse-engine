@@ -1,70 +1,70 @@
-# src/main.py
-
 import logging
 import os
-from fastapi import FastAPI, HTTPException, status, Security, Depends
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Request, status, Security, Depends
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from src.core.qa_service import QAService
 
-# Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialisation de l'application FastAPI
-app = FastAPI(
-    title="Synapse Engine - Second Cerveau",
-    description="Une API pour discuter avec vos documents.",
-    version="1.0.0"
-)
-
-# Sécurité : Définition de la clé API attendue
 API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
+
 async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
-    # On récupère la clé secrète définie dans l'environnement (ou une valeur par défaut pour le dev)
-    expected_key = os.getenv("APP_SECRET_KEY", "synapse_secret_dev")
+    expected_key = os.getenv("APP_SECRET_KEY")
     if api_key != expected_key:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Accès refusé : Clé d'API invalide ou manquante."
         )
 
-# Modèle de données pour la requête
+
 class QuestionRequest(BaseModel):
     question: str
 
-# Modèle de données pour la réponse
+
 class AnswerResponse(BaseModel):
     answer: str
 
-# Initialisation du service QA
-# On le place ici pour qu'il soit initialisé une seule fois au démarrage.
-try:
-    qa_service = QAService()
-except RuntimeError as e:
-    logger.error(f"Erreur critique au démarrage: {e}")
-    # Si le service ne peut pas démarrer (ex: clés API manquantes), on empêche l'application de fonctionner.
-    qa_service = None 
 
-@app.on_event("startup")
-async def startup_event():
-    if qa_service is None:
-        logger.warning("Le service de QA n'est pas disponible. L'API ne pourra pas répondre aux questions.")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if not os.getenv("APP_SECRET_KEY"):
+        raise RuntimeError("APP_SECRET_KEY environment variable is not set.")
 
-@app.post("/ask", 
+    logger.info("Starting QA service...")
+    try:
+        app.state.qa_service = QAService()
+        logger.info("QA service started successfully.")
+    except Exception as e:
+        logger.error(f"Critical error during QA service startup: {e}")
+        app.state.qa_service = None
+
+    yield
+
+
+app = FastAPI(
+    title="Synapse Engine - Second Cerveau",
+    description="Une API pour discuter avec vos documents.",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+
+@app.post("/ask",
           response_model=AnswerResponse,
           summary="Posez une question à vos documents",
           tags=["Question-Réponse"],
           dependencies=[Depends(verify_api_key)])
-async def ask_question(request: QuestionRequest):
-    """
-    Recevez une question et retournez une réponse basée sur les documents ingérés.
-    """
+async def ask_question(request: QuestionRequest, http_request: Request):
+    qa_service = http_request.app.state.qa_service
+
     if qa_service is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Le service n'est pas configuré correctement. Vérifiez les clés API et la configuration."
+            detail="Le service QA n'a pas pu démarrer. Vérifiez les logs et les variables d'environnement."
         )
 
     if not request.question.strip():
@@ -72,9 +72,9 @@ async def ask_question(request: QuestionRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La question ne peut pas être vide."
         )
-        
+
     logger.info(f"Question reçue: '{request.question}'")
-    
+
     try:
         answer = qa_service.ask_question(request.question)
         logger.info(f"Réponse générée: '{answer}'")
@@ -86,7 +86,7 @@ async def ask_question(request: QuestionRequest):
             detail="Une erreur interne est survenue lors du traitement de votre question."
         )
 
+
 if __name__ == "__main__":
     import uvicorn
-    # Cet endpoint est utile pour un test rapide, mais en production, utilisez un serveur Gunicorn/Uvicorn.
     uvicorn.run(app, host="0.0.0.0", port=8000)

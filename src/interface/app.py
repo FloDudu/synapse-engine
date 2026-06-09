@@ -11,9 +11,12 @@ st.set_page_config(page_title="Synapse Engine", page_icon="🧠")
 st.title("🧠 Synapse Engine")
 st.markdown("### Votre Second Cerveau Numérique")
 
-# Configuration de l'API (à adapter selon l'environnement, ex: Docker)
 API_URL = os.getenv("API_URL", "http://localhost:8000")
-APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "synapse_secret_dev")
+APP_SECRET_KEY = os.getenv("APP_SECRET_KEY")
+
+if not APP_SECRET_KEY:
+    st.error("APP_SECRET_KEY is not configured. Check your .env file.")
+    st.stop()
 
 # Initialisation de l'historique de chat
 if "messages" not in st.session_state:

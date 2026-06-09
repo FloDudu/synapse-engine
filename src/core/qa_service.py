@@ -7,6 +7,22 @@ from langchain_core.output_parsers import StrOutputParser
 from src.infrastructure.ai_factory import AIFactory
 from src.infrastructure.vector_store_manager import VectorStoreManager
 
+# Définition du prompt par défaut
+DEFAULT_RAG_PROMPT = """
+Vous êtes un assistant IA expert, conçu pour répondre aux questions en vous basant sur un contexte fourni.
+Restez strictement factuel et utilisez uniquement les informations du contexte ci-dessous pour formuler votre réponse.
+Si l'information n'est pas dans le contexte, dites "Je ne trouve pas l'information dans les documents fournis."
+Citez vos sources en utilisant le nom du fichier d'origine si disponible dans les métadonnées.
+
+CONTEXTE:
+{context}
+
+QUESTION:
+{question}
+
+RÉPONSE FACTUELLE:
+"""
+
 class QAService:
     """
     Service pour gérer la logique de questions-réponses (RAG).
@@ -32,21 +48,7 @@ class QAService:
         Crée et retourne la chaîne LangChain pour le RAG.
         """
         # Template pour le prompt
-        template = """
-        Vous êtes un assistant IA expert, conçu pour répondre aux questions en vous basant sur un contexte fourni.
-        Restez strictement factuel et utilisez uniquement les informations du contexte ci-dessous pour formuler votre réponse.
-        Si l'information n'est pas dans le contexte, dites "Je ne trouve pas l'information dans les documents fournis."
-        Citez vos sources en utilisant le nom du fichier d'origine si disponible dans les métadonnées.
-
-        CONTEXTE:
-        {context}
-
-        QUESTION:
-        {question}
-
-        RÉPONSE FACTUELLE:
-        """
-        prompt = PromptTemplate.from_template(template)
+        prompt = PromptTemplate.from_template(DEFAULT_RAG_PROMPT)
 
         # Fonction pour formater les documents récupérés
         def format_docs(docs):
